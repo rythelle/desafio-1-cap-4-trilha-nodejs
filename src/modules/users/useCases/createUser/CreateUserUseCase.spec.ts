@@ -1,3 +1,4 @@
+import { AppError } from "../../../../shared/errors/AppError";
 import { InMemoryUsersRepository } from "../../repositories/in-memory/InMemoryUsersRepository";
 import { CreateUserUseCase } from "./CreateUserUseCase";
 
@@ -17,14 +18,34 @@ describe("Create User", () => {
       password: "123456",
     };
 
-    await createUserUseCase.execute({
+    const userCreated = await createUserUseCase.execute({
       name: user.name,
       email: user.email,
       password: user.password,
     });
 
-    const userCreated = await inMemoryUsersRepository.findByEmail(user.email);
-
     expect(userCreated).toHaveProperty("id");
+  });
+
+  it("should not be able to create a user that exist", async () => {
+    await expect(async () => {
+      const user = {
+        name: "John",
+        email: "john@gmail.com",
+        password: "123456",
+      };
+
+      await createUserUseCase.execute({
+        name: user.name,
+        email: user.email,
+        password: user.password,
+      });
+
+      await createUserUseCase.execute({
+        name: user.name,
+        email: user.email,
+        password: user.password,
+      });
+    }).rejects.toEqual(new AppError("User already exists"));
   });
 });

@@ -2,8 +2,9 @@ import { AppError } from "../../../../shared/errors/AppError";
 import { InMemoryUsersRepository } from "../../../users/repositories/in-memory/InMemoryUsersRepository";
 import { CreateUserUseCase } from "../../../users/useCases/createUser/CreateUserUseCase";
 import { InMemoryStatementsRepository } from "../../repositories/in-memory/InMemoryStatementsRepository";
+import { CreateStatementUseCase } from "../createStatement/CreateStatementUseCase";
 import { GetBalanceUseCase } from "../getBalance/GetBalanceUseCase";
-import { CreateStatementUseCase } from "./CreateStatementUseCase";
+import { GetStatementOperationUseCase } from "./GetStatementOperationUseCase";
 
 enum OperationType {
   DEPOSIT = "deposit",
@@ -15,6 +16,7 @@ let createStatementUseCase: CreateStatementUseCase;
 let createUserUseCase: CreateUserUseCase;
 let inMemoryUsersRepository: InMemoryUsersRepository;
 let getBalanceUseCase: GetBalanceUseCase;
+let getStatementOperationUseCase: GetStatementOperationUseCase;
 
 describe("Statements", () => {
   beforeEach(() => {
@@ -29,9 +31,14 @@ describe("Statements", () => {
       inMemoryStatementsRepository,
       inMemoryUsersRepository
     );
+
+    getStatementOperationUseCase = new GetStatementOperationUseCase(
+      inMemoryUsersRepository,
+      inMemoryStatementsRepository
+    );
   });
 
-  it("should be able to do a new deposit", async () => {
+  it("should be able to query deposit or withdraw transaction", async () => {
     const user = {
       name: "John",
       email: "john@gmail.com",
@@ -57,56 +64,15 @@ describe("Statements", () => {
       description: statement.description,
     });
 
-    const balance = await getBalanceUseCase.execute({
+    const operation = await getStatementOperationUseCase.execute({
       user_id: userCreated.id as string,
+      statement_id: deposit.id as string,
     });
 
-    expect(deposit).toHaveProperty("id");
-    expect(balance.balance).toEqual(100.5);
+    expect(operation.amount).toEqual(100.5);
   });
 
-  it("should be able to do a withdraw", async () => {
-    const user = {
-      name: "John",
-      email: "john@gmail.com",
-      password: "123456",
-    };
-
-    const userCreated = await createUserUseCase.execute({
-      name: user.name,
-      email: user.email,
-      password: user.password,
-    });
-
-    const statement = {
-      type: "deposit",
-      amount: 100.5,
-      description: "Food",
-    };
-
-    const deposit = await createStatementUseCase.execute({
-      user_id: userCreated.id as string,
-      type: statement.type as OperationType,
-      amount: statement.amount,
-      description: statement.description,
-    });
-
-    await createStatementUseCase.execute({
-      user_id: userCreated.id as string,
-      type: "withdraw" as OperationType,
-      amount: 50.5,
-      description: "Gas",
-    });
-
-    const balance = await getBalanceUseCase.execute({
-      user_id: userCreated.id as string,
-    });
-
-    expect(deposit).toHaveProperty("id");
-    expect(balance.balance).toEqual(50);
-  });
-
-  it("should not be able to do a user deposit or withdrawal transaction that doesn't exist", async () => {
+  it("should not be able to query user deposit or withdrawal transaction that doesn't exist", async () => {
     await expect(async () => {
       const user = {
         name: "John",
@@ -114,7 +80,7 @@ describe("Statements", () => {
         password: "123456",
       };
 
-      await createUserUseCase.execute({
+      const userCreated = await createUserUseCase.execute({
         name: user.name,
         email: user.email,
         password: user.password,
@@ -126,16 +92,21 @@ describe("Statements", () => {
         description: "Food",
       };
 
-      await createStatementUseCase.execute({
-        user_id: "Testing",
+      const deposit = await createStatementUseCase.execute({
+        user_id: userCreated.id as string,
         type: statement.type as OperationType,
         amount: statement.amount,
         description: statement.description,
       });
+
+      await getStatementOperationUseCase.execute({
+        user_id: "Testing",
+        statement_id: deposit.id as string,
+      });
     }).rejects.toEqual(new AppError("User not found", 404));
   });
 
-  it("should not be able to do a withdrawal transaction if doesn't exist balance", async () => {
+  it("should not be able to query statement deposit or withdrawal transaction that doesn't exist", async () => {
     await expect(async () => {
       const user = {
         name: "John",
@@ -162,12 +133,10 @@ describe("Statements", () => {
         description: statement.description,
       });
 
-      await createStatementUseCase.execute({
+      await getStatementOperationUseCase.execute({
         user_id: userCreated.id as string,
-        type: "withdraw" as OperationType,
-        amount: 150,
-        description: "Gas",
+        statement_id: "Testing",
       });
-    }).rejects.toEqual(new AppError("Insufficient funds", 400));
+    }).rejects.toEqual(new AppError("Statement not found", 404));
   });
 });
