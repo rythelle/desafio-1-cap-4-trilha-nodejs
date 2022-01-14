@@ -24,4 +24,13 @@ describe("Create user controller", () => {
 
     expect(response.status).toBe(201);
   });
+
+  it("should not be able to create a new user if missing some information in body", async () => {
+    const response = await request(app).post("/api/v1/users").send({
+      name: "John",
+      email: "john@gmail.com",
+    });
+
+    expect(response.status).toBe(400);
+  });
 });

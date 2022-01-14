@@ -31,14 +31,29 @@ describe("Show user profile controller", () => {
 
     const response = await request(app)
       .get("/api/v1/profile")
-      .send({
-        email: "peter@gmail.com",
-        password: "123",
-      })
       .set({
         Authorization: `Bearer ${token}`,
       });
 
     expect(response.body).toHaveProperty("id");
+  });
+
+  it("should not be able to show user profile if token is invalid", async () => {
+    await request(app).post("/api/v1/users").send({
+      name: "Peter",
+      email: "peter@gmail.com",
+      password: "123",
+    });
+
+    const responseToken = await request(app).post("/api/v1/sessions").send({
+      email: "peter@gmail.com",
+      password: "123",
+    });
+    
+    const response = await request(app).get("/api/v1/profile").set({
+      Authorization: `Bearer aaa777`,
+    });
+
+    expect(response.status).toBe(401);
   });
 });

@@ -1,6 +1,7 @@
 import { app } from "../../../../app";
 import request from "supertest";
 import { Connection, createConnection } from "typeorm";
+import { AppError } from "../../../../shared/errors/AppError";
 
 let connection: Connection;
 
@@ -96,10 +97,9 @@ describe("Get balance controller", () => {
     const responseBalance = await request(app)
       .get("/api/v1/statements/balance")
       .set({
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer 123aaa`,
       });
 
-    expect(responseBalance.body).toHaveProperty("statement");
-    expect(responseBalance.body.balance).toEqual(50);
+    expect(responseBalance.status).toEqual(401);
   });
 });
